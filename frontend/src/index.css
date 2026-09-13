@@ -193,6 +193,73 @@ label {
   overflow-x: auto;
 }
 
+/* --- Job alerts --- */
+
+.job-alerts {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.job-alerts-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-radius: 0;
+}
+
+.job-alerts-toggle:hover {
+  background: var(--bg);
+}
+
+.job-alerts-body {
+  padding: 0 1rem 1rem;
+}
+
+.job-alerts-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.job-alerts-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.job-alerts-form input {
+  flex: 1;
+}
+
+.job-alerts-form button {
+  flex-shrink: 0;
+}
+
+.job-alerts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.job-alerts-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.job-alerts-list li:first-child {
+  border-top: none;
+}
+
 .applications-table {
   width: 100%;
   border-collapse: collapse;

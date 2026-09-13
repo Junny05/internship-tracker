@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import ApplicationForm from "../components/ApplicationForm";
 import ApplicationTable from "../components/ApplicationTable";
+import JobAlerts from "../components/JobAlerts";
 
 const STATUSES = ["WISHLIST", "APPLIED", "OA", "INTERVIEW", "OFFER", "REJECTED"];
 
@@ -98,6 +99,8 @@ export default function Dashboard({ token, email, onLogout }) {
           Log out
         </button>
       </header>
+
+      <JobAlerts token={token} onAuthError={onLogout} />
 
       <div className="toolbar">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>

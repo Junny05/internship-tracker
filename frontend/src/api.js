@@ -50,4 +50,12 @@ export const api = {
 
   deleteApplication: (token, id) =>
     request(`/applications/${id}`, { method: "DELETE", token }),
+
+  listSavedSearches: (token) => request("/searches", { token }),
+
+  createSavedSearch: (token, payload) =>
+    request("/searches", { method: "POST", body: payload, token }),
+
+  deleteSavedSearch: (token, id) =>
+    request(`/searches/${id}`, { method: "DELETE", token }),
 };
