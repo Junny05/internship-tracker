@@ -33,7 +33,12 @@ public class JobAlertService {
     @Value("${app.mail.from}")
     private String fromAddress;
 
+    // @Transactional here (not on checkSearch) matters: the scheduler calls this method through
+    // Spring's proxy, so this is the only place the annotation actually opens a session. Calling
+    // checkSearch() as a plain "this" call below wouldn't trigger its own @Transactional otherwise -
+    // it just rides along inside the transaction already open here, keeping search.getUser() loadable.
     @Scheduled(fixedRateString = "${app.job-alerts.poll-interval-ms}")
+    @Transactional
     public void pollAllSavedSearches() {
         List<SavedSearch> searches = savedSearchRepository.findAll();
         log.info("Polling {} saved search(es) for new listings", searches.size());
@@ -47,7 +52,6 @@ public class JobAlertService {
         }
     }
 
-    @Transactional
     public void checkSearch(SavedSearch search) {
         List<JobListing> listings = jobListingClient.search(search.getKeywords(), search.getLocation());
 
