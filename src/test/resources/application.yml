@@ -8,6 +8,11 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
 
 app:
   jwt:
@@ -15,3 +20,11 @@ app:
     expiration-ms: 3600000
   cors:
     allowed-origins: http://localhost:5173
+  mail:
+    from: test@example.com
+  job-alerts:
+    poll-interval-ms: 999999999
+  adzuna:
+    app-id: ""
+    app-key: ""
+    country: us

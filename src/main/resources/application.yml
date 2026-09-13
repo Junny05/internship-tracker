@@ -16,6 +16,17 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 app:
   jwt:
@@ -25,3 +36,15 @@ app:
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  mail:
+    # Sender address for job alert emails - must be a real address the SMTP account can send as.
+    from: ${MAIL_FROM:no-reply@internship-tracker.local}
+  job-alerts:
+    # How often (ms) to poll saved searches for new listings. Default: 6 hours.
+    # Keep this generous - free-tier job search APIs have low monthly call limits.
+    poll-interval-ms: ${JOB_ALERT_POLL_INTERVAL_MS:21600000}
+  adzuna:
+    # Free API credentials from https://developer.adzuna.com/ - required for job alerts to work.
+    app-id: ${ADZUNA_APP_ID:}
+    app-key: ${ADZUNA_APP_KEY:}
+    country: ${ADZUNA_COUNTRY:us}

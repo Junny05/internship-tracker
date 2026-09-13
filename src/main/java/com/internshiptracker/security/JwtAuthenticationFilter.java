@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -28,7 +29,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String HEADER_NAME = "Authorization";
     private static final String PREFIX = "Bearer ";
 
-    private final RequestMatcher protectedMatcher = new AntPathRequestMatcher("/applications/**");
+    private final RequestMatcher protectedMatcher = new OrRequestMatcher(
+            new AntPathRequestMatcher("/applications/**"),
+            new AntPathRequestMatcher("/searches/**"));
 
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
