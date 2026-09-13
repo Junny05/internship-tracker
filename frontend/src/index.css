@@ -1,0 +1,299 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --border: #e2e4ea;
+  --text: #1d2129;
+  --text-muted: #656d76;
+  --accent: #3b5bdb;
+  --accent-hover: #2f4bc4;
+  --danger: #d9363e;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: white;
+  transition: background 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.link-button {
+  background: none;
+  color: var(--accent);
+  padding: 0.2rem 0.4rem;
+  font-size: 0.9rem;
+}
+
+.link-button:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+.link-button.danger {
+  color: var(--danger);
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.9rem;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+/* --- Auth screen --- */
+
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.auth-card h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+}
+
+.auth-subtitle {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.auth-card button[type="submit"] {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.auth-card .link-button {
+  display: block;
+  margin: 0.75rem auto 0;
+}
+
+/* --- Dashboard --- */
+
+.dashboard {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.signed-in-as {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.toolbar select {
+  width: auto;
+  min-width: 180px;
+}
+
+.empty-state {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.table-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.applications-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.applications-table th,
+.applications-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.applications-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.applications-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.status-select {
+  width: auto;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 999px;
+  border: none;
+}
+
+.status-wishlist {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.status-applied {
+  background: #e7f0ff;
+  color: #2f56d0;
+}
+
+.status-oa {
+  background: #f2e9ff;
+  color: #7c3aed;
+}
+
+.status-interview {
+  background: #fff3e0;
+  color: #b8600a;
+}
+
+.status-offer {
+  background: #e3f9e5;
+  color: #1e8e3e;
+}
+
+.status-rejected {
+  background: #fdeceb;
+  color: #c53030;
+}
+
+/* --- Modal --- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 24, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 10;
+}
+
+.modal-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-card h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.15rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
