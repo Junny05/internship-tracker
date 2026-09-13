@@ -2,7 +2,8 @@
 
 A small full-stack app for tracking internship applications: register, log in, and
 manage a list of companies/roles you've applied to along with their status (wishlist,
-applied, OA, interview, offer, rejected).
+applied, OA, interview, offer, rejected). Also supports **job alerts** — save a
+keyword search and get emailed when a matching internship posting shows up.
 
 Built as a weekend project to demonstrate a Spring Boot + JWT auth + Postgres API,
 plus a React frontend, end to end.
@@ -11,9 +12,10 @@ plus a React frontend, end to end.
 
 **Backend**
 - Java 21
-- Spring Boot 3 (Web, Data JPA, Security, Validation)
+- Spring Boot 3 (Web, Data JPA, Security, Validation, Mail, Scheduling)
 - PostgreSQL
 - JWT auth via [jjwt](https://github.com/jwtk/jjwt)
+- [Adzuna](https://developer.adzuna.com/) job listings API (job alerts)
 - springdoc-openapi (Swagger UI)
 - Lombok
 - Maven
@@ -47,7 +49,24 @@ plus a React frontend, end to end.
 | link        | String            | nullable                              |
 | user        | FK -> User (user_id) | owner of the row                   |
 
-Every `/applications/**` route is scoped to the authenticated user. Rows belonging
+**SavedSearch**
+| field      | type    | notes                                    |
+|------------|---------|-------------------------------------------|
+| id         | UUID    | primary key                                |
+| keywords   | String  | not null (e.g. "software engineering intern") |
+| location   | String  | nullable                                   |
+| createdAt  | Instant | set on insert                              |
+| user       | FK -> User (user_id) | owner of the search           |
+
+**SeenListing** — internal bookkeeping so the same posting isn't emailed twice.
+| field         | type    | notes                              |
+|---------------|---------|-------------------------------------|
+| id            | UUID    | primary key                          |
+| savedSearch   | FK -> SavedSearch | which search found it       |
+| externalId    | String  | the job listing's ID from Adzuna     |
+| seenAt        | Instant | when it was first seen               |
+
+Every `/applications/**` and `/searches/**` route is scoped to the authenticated user. Rows belonging
 to another user are treated as if they don't exist (404, not 403) so existence
 isn't leaked cross-account.
 
@@ -97,6 +116,28 @@ yourself before running compose.
 | `SERVER_PORT`       | HTTP port the app listens on         | `8080`                                |
 | `ALLOWED_ORIGINS`   | Comma-separated CORS-allowed origins | `http://localhost:5173,http://localhost:3000` |
 | `VITE_API_BASE_URL` | API base URL baked into the frontend build | `http://localhost:8080`         |
+| `MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD` | SMTP account job alert emails send from | `smtp.gmail.com:587`, blank credentials |
+| `MAIL_FROM`         | "From" address on job alert emails   | `no-reply@internship-tracker.local`  |
+| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Free API credentials from [developer.adzuna.com](https://developer.adzuna.com/) | blank (job alerts silently find nothing without these) |
+| `ADZUNA_COUNTRY`    | Adzuna country code to search        | `us`                                  |
+| `JOB_ALERT_POLL_INTERVAL_MS` | How often (ms) saved searches are checked | `21600000` (6h)              |
+
+## Job alerts
+
+Save a search (keywords + optional location) from the dashboard's "Job alerts"
+section, or via the API. A background job polls Adzuna every `JOB_ALERT_POLL_INTERVAL_MS`
+and emails you (at your account's registered address) when it finds a listing it
+hasn't seen before for that search — duplicate postings are never re-emailed.
+
+Without `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` set, saved searches can still be created,
+but the poller finds nothing (logged, not an error). Without SMTP credentials set,
+a failed send is logged rather than crashing the poller.
+
+To set it up for real:
+1. Register for free Adzuna API credentials at https://developer.adzuna.com/
+2. Get an SMTP account to send from — the easiest is a Gmail address with an
+   [app password](https://myaccount.google.com/apppasswords) (not your regular password)
+3. Set the variables above (via `.env` or exported before `docker compose up`)
 
 ## Running without Docker
 
@@ -238,6 +279,26 @@ curl -X DELETE http://localhost:8080/applications/{id} \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### Job alerts (saved searches)
+
+**Create a saved search**
+```bash
+curl -X POST http://localhost:8080/searches \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"keywords": "software engineering intern", "location": "New York"}'
+```
+
+**List your saved searches**
+```bash
+curl http://localhost:8080/searches -H "Authorization: Bearer $TOKEN"
+```
+
+**Delete a saved search**
+```bash
+curl -X DELETE http://localhost:8080/searches/{id} -H "Authorization: Bearer $TOKEN"
+```
+
 ### Error responses
 
 Validation failures, not-found, and auth errors all come back as JSON instead of
@@ -257,18 +318,20 @@ a stack trace, e.g.:
 
 ```
 src/main/java/com/internshiptracker/
-├── controller/    # REST endpoints (AuthController, ApplicationController)
-├── service/       # business logic (AuthService, ApplicationService)
+├── controller/    # REST endpoints (Auth, Application, SavedSearch)
+├── service/       # business logic (AuthService, ApplicationService,
+│                  #   SavedSearchService, JobAlertService)
 ├── repository/    # Spring Data JPA repositories
-├── entity/        # JPA entities (User, Application, ApplicationStatus)
+├── entity/        # JPA entities (User, Application, SavedSearch, SeenListing, ...)
 ├── dto/           # request/response payloads
+├── client/        # external API integration (JobListingClient, AdzunaJobListingClient)
 ├── security/      # JWT generation/validation, filter, UserDetails wiring
-├── config/        # SecurityConfig, OpenApiConfig
+├── config/        # SecurityConfig, OpenApiConfig, JobAlertConfig
 └── exception/     # custom exceptions + @RestControllerAdvice handler
 
 frontend/src/
 ├── api.js         # fetch wrapper for the backend API
 ├── App.jsx        # top-level auth state (token in localStorage)
 ├── pages/         # LoginPage, Dashboard
-└── components/    # ApplicationTable, ApplicationForm
+└── components/    # ApplicationTable, ApplicationForm, JobAlerts
 ```
