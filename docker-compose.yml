@@ -16,12 +16,23 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    # Local SMTP catcher: point MAIL_HOST=mailpit, MAIL_PORT=1025 to receive job alert
+    # emails here instead of sending them. View them at http://localhost:8025
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
   app:
     build: .
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
