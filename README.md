@@ -121,6 +121,7 @@ yourself before running compose.
 | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Free API credentials from [developer.adzuna.com](https://developer.adzuna.com/) | blank (job alerts silently find nothing without these) |
 | `ADZUNA_COUNTRY`    | Adzuna country code to search        | `us`                                  |
 | `JOB_ALERT_POLL_INTERVAL_MS` | How often (ms) saved searches are checked | `21600000` (6h)              |
+| `ADZUNA_BASE_URL`   | Adzuna API base URL (override only for tests) | `https://api.adzuna.com/v1/api` |
 
 ## Job alerts
 
@@ -138,6 +139,21 @@ To set it up for real:
 2. Get an SMTP account to send from — the easiest is a Gmail address with an
    [app password](https://myaccount.google.com/apppasswords) (not your regular password)
 3. Set the variables above (via `.env` or exported before `docker compose up`)
+
+### Viewing job alert emails locally (Mailpit)
+
+`docker compose up` also starts [Mailpit](https://mailpit.axllent.org/), a local SMTP
+server that catches every email instead of sending it. To use it:
+
+1. In `.env`, set `MAIL_HOST=mailpit` and `MAIL_PORT=1025` (commented out in `.env.example`)
+2. Restart the app: `docker compose up -d app`
+3. Open http://localhost:8025 to see the inbox
+
+Mailpit needs no login. To trigger an email without waiting for the poll interval, set
+`JOB_ALERT_POLL_INTERVAL_MS=60000` in `.env` for a minute, then save a search that has matches.
+
+Running the tests with `mvn test` does not need Mailpit or Adzuna credentials. The
+job alert test mocks Adzuna with WireMock and mocks the mail sender.
 
 ## Running without Docker
 
