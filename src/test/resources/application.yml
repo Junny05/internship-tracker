@@ -25,6 +25,7 @@ app:
   job-alerts:
     poll-interval-ms: 999999999
   adzuna:
+    base-url: http://localhost:0
     app-id: ""
     app-key: ""
     country: us

@@ -16,19 +16,20 @@ import java.util.Optional;
 public class AdzunaJobListingClient implements JobListingClient {
 
     private static final Logger log = LoggerFactory.getLogger(AdzunaJobListingClient.class);
-    private static final String SEARCH_URL_TEMPLATE = "https://api.adzuna.com/v1/api/jobs/{country}/search/1";
-
     private final RestClient restClient;
+    private final String baseUrl;
     private final String appId;
     private final String appKey;
     private final String country;
 
     public AdzunaJobListingClient(
             RestClient restClient,
+            @Value("${app.adzuna.base-url}") String baseUrl,
             @Value("${app.adzuna.app-id}") String appId,
             @Value("${app.adzuna.app-key}") String appKey,
             @Value("${app.adzuna.country}") String country) {
         this.restClient = restClient;
+        this.baseUrl = baseUrl;
         this.appId = appId;
         this.appKey = appKey;
         this.country = country;
@@ -41,7 +42,7 @@ public class AdzunaJobListingClient implements JobListingClient {
             return List.of();
         }
 
-        String uri = UriComponentsBuilder.fromHttpUrl(SEARCH_URL_TEMPLATE)
+        String uri = UriComponentsBuilder.fromHttpUrl(baseUrl + "/jobs/{country}/search/1")
                 .queryParam("app_id", appId)
                 .queryParam("app_key", appKey)
                 .queryParam("results_per_page", 20)

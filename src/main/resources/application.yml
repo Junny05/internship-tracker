@@ -44,6 +44,8 @@ app:
     # Keep this generous - free-tier job search APIs have low monthly call limits.
     poll-interval-ms: ${JOB_ALERT_POLL_INTERVAL_MS:21600000}
   adzuna:
+    # Override only for tests (WireMock); the real API is the default.
+    base-url: ${ADZUNA_BASE_URL:https://api.adzuna.com/v1/api}
     # Free API credentials from https://developer.adzuna.com/ - required for job alerts to work.
     app-id: ${ADZUNA_APP_ID:}
     app-key: ${ADZUNA_APP_KEY:}

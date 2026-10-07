@@ -23,6 +23,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <lombok.version>1.18.48</lombok.version>
         <springdoc.version>2.6.0</springdoc.version>
+        <wiremock.version>3.9.1</wiremock.version>
     </properties>
 
     <dependencies>
@@ -45,6 +46,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>${wiremock.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
