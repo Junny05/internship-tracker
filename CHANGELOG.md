@@ -370,13 +370,24 @@ PR, checks out, sets up JDK 21 (Temurin, Maven dependency caching), and runs
 `mvn -B test`. No services block needed: tests use H2 in-memory with Flyway
 disabled, not the real Postgres.
 
-**Honest caveat:** this has not actually run on GitHub's runners yet (no push
-has been made) — only locally simulated by running the exact same command.
-YAML syntax validated with `python3 -c "import yaml; yaml.safe_load(...)"`.
-Flagging this explicitly rather than claiming it works untested on the real
-runner.
+**Update (same day, after pushing):** actually ran on GitHub's runners this
+time — pushed to `main` and watched the run with `gh run watch`:
+```
+$ gh run watch 41000829845 --exit-status
+✓ test in 46s (ID 123884573948)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Set up JDK 21
+  ✓ Run tests
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+```
+Two harmless deprecation annotations (Node 20 runtime on `actions/checkout@v4`/
+`setup-java@v4`, and `setup-java@v4` itself being deprecated) — not failures,
+worth bumping to `@v5` eventually but not urgent.
 
-**Verified (local simulation of the exact CI command):**
+**Verified (local simulation of the exact CI command, before the push):**
 ```
 $ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 YAML valid
