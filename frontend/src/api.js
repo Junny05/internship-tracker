@@ -36,8 +36,12 @@ export const api = {
   login: (email, password) =>
     request("/auth/login", { method: "POST", body: { email, password } }),
 
+  // GET /applications returns a Spring Data Page ({content, totalElements, ...}),
+  // not a bare array - unwrap it here so every caller keeps getting a plain array.
   listApplications: (token, status) =>
-    request(`/applications${status ? `?status=${status}` : ""}`, { token }),
+    request(`/applications${status ? `?status=${status}` : ""}`, { token }).then(
+      (page) => page.content,
+    ),
 
   createApplication: (token, payload) =>
     request("/applications", { method: "POST", body: payload, token }),

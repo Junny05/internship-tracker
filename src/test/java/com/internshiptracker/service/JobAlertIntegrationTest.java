@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -102,5 +103,41 @@ class JobAlertIntegrationTest {
 
         verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
         assertThat(seenListingRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void failedEmailDoesNotMarkListingAsSeen() {
+        User user = userRepository.save(User.builder()
+                .email("alerts-" + UUID.randomUUID() + "@example.com")
+                .passwordHash("not-used")
+                .build());
+        savedSearchRepository.save(SavedSearch.builder()
+                .user(user)
+                .keywords("java intern")
+                .location("Austin")
+                .build());
+
+        ADZUNA.stubFor(get(urlPathEqualTo("/v1/api/jobs/us/search/1"))
+                .withQueryParam("what", equalTo("java intern"))
+                .willReturn(okJson("""
+                        {"results": [
+                          {"id": "2001", "title": "Java Intern", "company": {"display_name": "Acme"},
+                           "location": {"display_name": "Austin, TX"}, "redirect_url": "https://adzuna.example/2001"}
+                        ]}
+                        """)));
+
+        doThrow(new MailSendException("smtp unavailable")).when(mailSender).send(any(SimpleMailMessage.class));
+
+        // SMTP is down: the listing must NOT be recorded as seen, so it can be retried later
+        jobAlertService.pollAllSavedSearches();
+
+        assertThat(seenListingRepository.count()).isEqualTo(0);
+
+        // SMTP recovers: the same still-new listing should go out now
+        reset(mailSender);
+        jobAlertService.pollAllSavedSearches();
+
+        verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
+        assertThat(seenListingRepository.count()).isEqualTo(1);
     }
 }

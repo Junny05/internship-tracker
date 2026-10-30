@@ -60,9 +60,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/applications/**").authenticated()
-                        .requestMatchers("/searches/**").authenticated()
-                        .anyRequest().permitAll())
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
+                        // Deny-by-default: any endpoint added later requires a JWT
+                        // unless explicitly permitted above.
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

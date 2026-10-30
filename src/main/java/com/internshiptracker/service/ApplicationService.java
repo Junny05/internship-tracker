@@ -10,10 +10,11 @@ import com.internshiptracker.exception.ResourceNotFoundException;
 import com.internshiptracker.repository.ApplicationRepository;
 import com.internshiptracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -24,12 +25,12 @@ public class ApplicationService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<ApplicationResponse> listForUser(UUID userId, ApplicationStatus statusFilter) {
-        List<Application> applications = statusFilter == null
-                ? applicationRepository.findAllByUserId(userId)
-                : applicationRepository.findAllByUserIdAndStatus(userId, statusFilter);
+    public Page<ApplicationResponse> listForUser(UUID userId, ApplicationStatus statusFilter, Pageable pageable) {
+        Page<Application> applications = statusFilter == null
+                ? applicationRepository.findAllByUserId(userId, pageable)
+                : applicationRepository.findAllByUserIdAndStatus(userId, statusFilter, pageable);
 
-        return applications.stream().map(ApplicationResponse::fromEntity).toList();
+        return applications.map(ApplicationResponse::fromEntity);
     }
 
     @Transactional(readOnly = true)

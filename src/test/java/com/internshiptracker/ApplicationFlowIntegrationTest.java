@@ -93,11 +93,12 @@ class ApplicationFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.company").value("Acme Corp"));
 
-        // List with status filter
+        // List with status filter (paginated response)
         mockMvc.perform(get("/applications").param("status", "APPLIED")
                         .header("Authorization", authHeader))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(applicationId));
+                .andExpect(jsonPath("$.content[0].id").value(applicationId))
+                .andExpect(jsonPath("$.totalElements").value(1));
 
         // Update status only
         mockMvc.perform(patch("/applications/{id}/status", applicationId)

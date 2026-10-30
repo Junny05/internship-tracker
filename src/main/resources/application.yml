@@ -10,12 +10,19 @@ spring:
     password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    locations: classpath:db/migration
+    # This DB predates Flyway (schema already exists from Hibernate's old ddl-auto: update).
+    # baseline-on-migrate treats that existing schema as already being at baselineVersion,
+    # instead of failing on "non-empty schema without metadata table".
+    baseline-on-migrate: true
+    baseline-version: "1"
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -27,6 +34,23 @@ spring:
           auth: true
           starttls:
             enable: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    # An SMTP outage is not "the app is down" - job alert emails already fail
+    # safe on a send error (the listing stays unmarked and is retried next
+    # poll, see JobAlertService). Without this, a mail outage would flip
+    # /actuator/health to DOWN and risk a liveness probe restart-looping an
+    # otherwise-healthy app.
+    mail:
+      enabled: false
 
 app:
   jwt:
@@ -50,3 +74,5 @@ app:
     app-id: ${ADZUNA_APP_ID:}
     app-key: ${ADZUNA_APP_KEY:}
     country: ${ADZUNA_COUNTRY:us}
+    connect-timeout-ms: ${ADZUNA_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${ADZUNA_READ_TIMEOUT_MS:5000}

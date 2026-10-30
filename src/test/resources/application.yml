@@ -8,11 +8,20 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+  flyway:
+    enabled: false
   mail:
     host: localhost
     port: 3025
     username: test
     password: test
+
+management:
+  health:
+    # Actuator's mail health contributor fails to initialize when JavaMailSender
+    # is @MockBean'd (JobAlertIntegrationTest) - not meaningful in tests anyway.
+    mail:
+      enabled: false
 
 app:
   jwt:

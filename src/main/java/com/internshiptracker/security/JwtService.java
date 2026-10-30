@@ -1,7 +1,6 @@
 package com.internshiptracker.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -42,22 +41,23 @@ public class JwtService {
 
     public boolean isTokenValid(String token) {
         try {
-            Claims claims = parseClaims(token);
-            return claims.getExpiration().after(new Date());
+            parseClaims(token);
+            return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
+    // jjwt validates the exp claim itself during parsing and throws
+    // ExpiredJwtException - no manual expiration check needed, and no
+    // swallowing it here, so an expired token fails closed for every caller
+    // (extractEmail included), not just the ones that remember to check
+    // isTokenValid first.
     private Claims parseClaims(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith(signingKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-        } catch (ExpiredJwtException e) {
-            return e.getClaims();
-        }
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

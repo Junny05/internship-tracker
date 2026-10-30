@@ -2,6 +2,9 @@ package com.internshiptracker.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.internshiptracker.entity.SeenListing;
+import com.internshiptracker.repository.SavedSearchRepository;
+import com.internshiptracker.repository.SeenListingRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -24,6 +27,12 @@ class SavedSearchIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private SavedSearchRepository savedSearchRepository;
+
+    @Autowired
+    private SeenListingRepository seenListingRepository;
 
     @Test
     void searchesRequireAuthentication() throws Exception {
@@ -81,6 +90,31 @@ class SavedSearchIntegrationTest {
                         .header("Authorization", "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void deletingASearchWithMatchedListingsDoesNotViolateForeignKey() throws Exception {
+        String token = registerAndGetToken();
+
+        MvcResult created = mockMvc.perform(post("/searches")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"keywords": "intern", "location": "Austin"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String searchId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asText();
+
+        // Simulate the poller having already found and recorded a matching listing
+        seenListingRepository.save(SeenListing.builder()
+                .savedSearch(savedSearchRepository.findById(UUID.fromString(searchId)).orElseThrow())
+                .externalId("9001")
+                .build());
+
+        mockMvc.perform(delete("/searches/" + searchId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
     }
 
     @Test

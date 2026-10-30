@@ -3,7 +3,6 @@ package com.internshiptracker.service;
 import com.internshiptracker.client.JobListing;
 import com.internshiptracker.client.JobListingClient;
 import com.internshiptracker.entity.SavedSearch;
-import com.internshiptracker.entity.SeenListing;
 import com.internshiptracker.repository.SavedSearchRepository;
 import com.internshiptracker.repository.SeenListingRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +13,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,18 +27,23 @@ public class JobAlertService {
     private final SeenListingRepository seenListingRepository;
     private final JobListingClient jobListingClient;
     private final JavaMailSender mailSender;
+    private final SeenListingRecorder seenListingRecorder;
 
     @Value("${app.mail.from}")
     private String fromAddress;
 
-    // @Transactional here (not on checkSearch) matters: the scheduler calls this method through
-    // Spring's proxy, so this is the only place the annotation actually opens a session. Calling
-    // checkSearch() as a plain "this" call below wouldn't trigger its own @Transactional otherwise -
-    // it just rides along inside the transaction already open here, keeping search.getUser() loadable.
-    @Scheduled(fixedRateString = "${app.job-alerts.poll-interval-ms}")
-    @Transactional
+    // No @Transactional here: each search is checked and (on success) persisted
+    // independently via SeenListingRecorder, in its own transaction, so one search's
+    // failure can't roll back SeenListing rows already committed for another search
+    // earlier in this same loop.
+    // initialDelayString matters: fixedRateString alone fires the first run immediately
+    // on startup (confirmed by running JobAlertIntegrationTest in isolation - it raced
+    // with that startup firing and sent the same alert twice). Delaying the first run
+    // also avoids hammering Adzuna's rate-limited free tier on every app restart/deploy.
+    @Scheduled(fixedRateString = "${app.job-alerts.poll-interval-ms}",
+            initialDelayString = "${app.job-alerts.poll-interval-ms}")
     public void pollAllSavedSearches() {
-        List<SavedSearch> searches = savedSearchRepository.findAll();
+        List<SavedSearch> searches = savedSearchRepository.findAllWithUser();
         log.info("Polling {} saved search(es) for new listings", searches.size());
 
         for (SavedSearch search : searches) {
@@ -55,24 +58,27 @@ public class JobAlertService {
     public void checkSearch(SavedSearch search) {
         List<JobListing> listings = jobListingClient.search(search.getKeywords(), search.getLocation());
 
+        if (listings.isEmpty()) {
+            return;
+        }
+
+        // Batched lookup instead of one exists query per listing (N+1).
+        Set<String> seenExternalIds = seenListingRepository.findSeenExternalIds(
+                search.getId(), listings.stream().map(JobListing::externalId).toList());
+
         List<JobListing> newListings = listings.stream()
-                .filter(listing -> !seenListingRepository.existsBySavedSearchIdAndExternalId(
-                        search.getId(), listing.externalId()))
+                .filter(listing -> !seenExternalIds.contains(listing.externalId()))
                 .toList();
 
         if (newListings.isEmpty()) {
             return;
         }
 
-        for (JobListing listing : newListings) {
-            seenListingRepository.save(SeenListing.builder()
-                    .savedSearch(search)
-                    .externalId(listing.externalId())
-                    .seenAt(Instant.now())
-                    .build());
-        }
-
+        // Only record listings as seen once the email actually goes out - sendNotificationEmail
+        // now lets a send failure propagate (instead of swallowing it), so on failure we return
+        // here without persisting anything, and the same listings are retried next poll.
         sendNotificationEmail(search, newListings);
+        seenListingRecorder.markSeen(search, newListings);
     }
 
     private void sendNotificationEmail(SavedSearch search, List<JobListing> newListings) {
@@ -102,11 +108,9 @@ public class JobAlertService {
         message.setSubject(subject);
         message.setText(body.toString());
 
-        try {
-            mailSender.send(message);
-            log.info("Sent job alert email to {} with {} new listing(s)", to, newListings.size());
-        } catch (Exception e) {
-            log.error("Failed to send job alert email to {}", to, e);
-        }
+        // Let a send failure propagate to checkSearch, which must not mark these listings
+        // as seen if the email never went out.
+        mailSender.send(message);
+        log.info("Sent job alert email to {} with {} new listing(s)", to, newListings.size());
     }
 }

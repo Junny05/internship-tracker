@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -16,6 +18,9 @@ import java.util.Optional;
 public class AdzunaJobListingClient implements JobListingClient {
 
     private static final Logger log = LoggerFactory.getLogger(AdzunaJobListingClient.class);
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long RETRY_BACKOFF_MS = 200;
+
     private final RestClient restClient;
     private final String baseUrl;
     private final String appId;
@@ -52,20 +57,49 @@ public class AdzunaJobListingClient implements JobListingClient {
                 .buildAndExpand(country)
                 .toUriString();
 
-        try {
-            AdzunaSearchResponse response = restClient.get().uri(uri).retrieve().body(AdzunaSearchResponse.class);
+        AdzunaSearchResponse response = fetchWithRetry(uri, keywords, location);
 
-            if (response == null || response.results() == null) {
-                return List.of();
-            }
-
-            return response.results().stream()
-                    .filter(job -> job.id() != null)
-                    .map(this::toJobListing)
-                    .toList();
-        } catch (Exception e) {
-            log.error("Adzuna search failed for keywords='{}' location='{}'", keywords, location, e);
+        if (response == null || response.results() == null) {
             return List.of();
+        }
+
+        return response.results().stream()
+                .filter(job -> job.id() != null)
+                .map(this::toJobListing)
+                .toList();
+    }
+
+    // Retries only transient failures (network issues, timeouts, 5xx) - a 4xx
+    // means something about the request itself is wrong and won't fix itself
+    // on retry. Once attempts are exhausted the exception propagates instead
+    // of being swallowed into an empty list, so the caller (JobAlertService,
+    // via its per-search catch in pollAllSavedSearches) can tell "Adzuna is
+    // down" apart from "no new listings" instead of treating them the same.
+    private AdzunaSearchResponse fetchWithRetry(String uri, String keywords, String location) {
+        RuntimeException lastFailure = null;
+
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                return restClient.get().uri(uri).retrieve().body(AdzunaSearchResponse.class);
+            } catch (ResourceAccessException | HttpServerErrorException e) {
+                lastFailure = e;
+                log.warn("Adzuna search attempt {}/{} failed for keywords='{}' location='{}': {}",
+                        attempt, MAX_ATTEMPTS, keywords, location, e.getMessage());
+                if (attempt < MAX_ATTEMPTS) {
+                    sleepBeforeRetry();
+                }
+            }
+        }
+
+        throw lastFailure;
+    }
+
+    private void sleepBeforeRetry() {
+        try {
+            Thread.sleep(RETRY_BACKOFF_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while retrying Adzuna search", e);
         }
     }
 

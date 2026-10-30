@@ -6,6 +6,7 @@ import com.internshiptracker.entity.SavedSearch;
 import com.internshiptracker.entity.User;
 import com.internshiptracker.exception.ResourceNotFoundException;
 import com.internshiptracker.repository.SavedSearchRepository;
+import com.internshiptracker.repository.SeenListingRepository;
 import com.internshiptracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class SavedSearchService {
 
     private final SavedSearchRepository savedSearchRepository;
+    private final SeenListingRepository seenListingRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
@@ -46,6 +48,9 @@ public class SavedSearchService {
     public void delete(UUID id, UUID userId) {
         SavedSearch savedSearch = savedSearchRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Saved search not found"));
+        // A search that has already matched listings has SeenListing rows referencing
+        // it via a foreign key - deleting the search first violates that constraint.
+        seenListingRepository.deleteAllBySavedSearchId(savedSearch.getId());
         savedSearchRepository.delete(savedSearch);
     }
 }

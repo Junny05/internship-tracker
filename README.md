@@ -8,12 +8,43 @@ keyword search and get emailed when a matching internship posting shows up.
 Built as a weekend project to demonstrate a Spring Boot + JWT auth + Postgres API,
 plus a React frontend, end to end.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        FE[React frontend]
+    end
+
+    subgraph "Spring Boot API"
+        JWT[JwtAuthenticationFilter]
+        CTRL[Controllers<br/>Auth / Application / SavedSearch]
+        SVC[Services]
+        SCHED["@Scheduled JobAlertService<br/>polls every JOB_ALERT_POLL_INTERVAL_MS"]
+    end
+
+    DB[(Postgres<br/>Flyway-managed schema)]
+    ADZUNA[Adzuna job listings API]
+    SMTP[SMTP / Mailpit]
+
+    FE -- "JSON over HTTPS, Bearer JWT" --> JWT
+    JWT --> CTRL --> SVC --> DB
+    SCHED --> DB
+    SCHED -- "search(keywords, location)" --> ADZUNA
+    SCHED -- "new listing found" --> SMTP
+```
+
+Auth is stateless (no server-side sessions) — every request after login carries
+a JWT in `Authorization: Bearer <token>`, verified per-request by
+`JwtAuthenticationFilter`. `JobAlertService` runs on its own schedule,
+independent of any HTTP request, polling Adzuna and emailing on new matches.
+
 ## Tech stack
 
 **Backend**
 - Java 21
-- Spring Boot 3 (Web, Data JPA, Security, Validation, Mail, Scheduling)
-- PostgreSQL
+- Spring Boot 3 (Web, Data JPA, Security, Validation, Mail, Scheduling, Actuator)
+- PostgreSQL + Flyway migrations
 - JWT auth via [jjwt](https://github.com/jwtk/jjwt)
 - [Adzuna](https://developer.adzuna.com/) job listings API (job alerts)
 - springdoc-openapi (Swagger UI)
@@ -26,6 +57,7 @@ plus a React frontend, end to end.
 
 **Infra**
 - Docker / Docker Compose (app + Postgres + frontend, all in one command)
+- GitHub Actions CI (runs the test suite on every push/PR to `main`)
 
 ## Data model
 
@@ -236,14 +268,20 @@ TOKEN="<paste the token from above>"
 
 ### Applications
 
-**List (optionally filter by status)**
+**List (paginated, optionally filter by status)**
 ```bash
 curl http://localhost:8080/applications \
   -H "Authorization: Bearer $TOKEN"
 
 curl "http://localhost:8080/applications?status=APPLIED" \
   -H "Authorization: Bearer $TOKEN"
+
+# page/size/sort are standard Spring Data pagination params
+curl "http://localhost:8080/applications?page=0&size=20&sort=appliedDate,desc" \
+  -H "Authorization: Bearer $TOKEN"
 ```
+Returns a page object (`{ "content": [...], "totalElements": N, "totalPages": N, ... }`),
+not a bare array. Default page size is 20.
 
 **Create**
 ```bash
@@ -336,7 +374,7 @@ a stack trace, e.g.:
 src/main/java/com/internshiptracker/
 ├── controller/    # REST endpoints (Auth, Application, SavedSearch)
 ├── service/       # business logic (AuthService, ApplicationService,
-│                  #   SavedSearchService, JobAlertService)
+│                  #   SavedSearchService, JobAlertService, SeenListingRecorder)
 ├── repository/    # Spring Data JPA repositories
 ├── entity/        # JPA entities (User, Application, SavedSearch, SeenListing, ...)
 ├── dto/           # request/response payloads
@@ -345,9 +383,25 @@ src/main/java/com/internshiptracker/
 ├── config/        # SecurityConfig, OpenApiConfig, JobAlertConfig
 └── exception/     # custom exceptions + @RestControllerAdvice handler
 
+src/main/resources/
+├── application.yml
+└── db/migration/  # Flyway SQL migrations (schema is Flyway-owned, not Hibernate auto-DDL)
+
+.github/workflows/
+└── ci.yml         # runs `mvn test` on every push/PR to main
+
 frontend/src/
 ├── api.js         # fetch wrapper for the backend API
 ├── App.jsx        # top-level auth state (token in localStorage)
 ├── pages/         # LoginPage, Dashboard
 └── components/    # ApplicationTable, ApplicationForm, JobAlerts
 ```
+
+## Operational endpoints
+
+`GET /actuator/health` is public and reports basic liveness (`{"status":"UP"}`).
+Every other `/actuator/**` path is unexposed and additionally requires auth
+(the deny-by-default `SecurityConfig` catch-all). Mail (SMTP) health is
+deliberately excluded from the aggregate status — an SMTP outage isn't "the
+app is down" (a failed job alert send fails safe and retries next poll), so
+it shouldn't make a liveness probe restart an otherwise-healthy app.
